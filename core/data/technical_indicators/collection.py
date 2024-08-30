@@ -1,8 +1,12 @@
 from typing import List
 
-from core.data.technical_indicators.indicators import Indicator
+from indicators import (Indicator, IndicatorDescription)
 
-from .momentum import *
+from momentum import (
+    AwesomeOscillatorIndicator, KAMAIndicator, ROCIndicator, RSIIndicator,
+    PercentagePriceOscillatorIndicator, PercentageVolumeOscillatorIndicator,
+    TSIIndicator, StochRSIIndicator, StochasticOscillatorIndicator,
+    UltimateOscillatorIndicator, WilliamsRIndicator)
 
 
 class IndicatorCollection:

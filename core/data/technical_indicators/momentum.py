@@ -1,8 +1,7 @@
-import pandas as pd
 import ta.momentum
 
-
-from .indicators import IndicatorParameterDescription, IndicatorPrototype, IndicatorDescription
+from .indicators import (
+    IndicatorParameterDescription, IndicatorPrototype)
 
 
 class AwesomeOscillatorIndicator(IndicatorPrototype):
@@ -50,7 +49,7 @@ class PercentagePriceOscillatorIndicator(IndicatorPrototype):
             ],
             norm_factor=(1, 1, 1),
             skip_field='window_slow')
-        
+
     def calculate(self, params, df):
         ppo = ta.momentum.ppo(close=df['close'],
                               window_slow=params['window_slow'],
@@ -66,7 +65,7 @@ class PercentagePriceOscillatorIndicator(IndicatorPrototype):
                                 window_slow=params['window_slow'],
                                 window_fast=params['window_fast'],
                                 window_sign=params['window_sign'],)
-        
+
         return ppo, ppo_hist, ppo_sig
 
 
@@ -118,7 +117,7 @@ class RSIIndicator(IndicatorPrototype):
     def __init__(self):
         super().__init__("RSI", [
                 IndicatorParameterDescription('window', 5, 20, 14, 'int')
-            ], 
+            ],
             norm_factor=100,
             skip_field='window')
 

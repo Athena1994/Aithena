@@ -1,6 +1,7 @@
 import ta
 
-from .indicators import IndicatorParameterDescription, IndicatorPrototype, IndicatorDescription
+from indicators import (
+    IndicatorParameterDescription, IndicatorPrototype)
 
 
 class AccDistIndexIndicator(IndicatorPrototype):
@@ -10,9 +11,9 @@ class AccDistIndexIndicator(IndicatorPrototype):
 
     def calculate(self, params, df):
         return ta.volume.acc_dist_index(high=df['high'],
-                                    low=df['low'],
-                                    close=df['close'],
-                                    volume=df['volume'])
+                                        low=df['low'],
+                                        close=df['close'],
+                                        volume=df['volume'])
 
 
 class ChaikinMoneyFlowIndicator(IndicatorPrototype):
@@ -20,7 +21,7 @@ class ChaikinMoneyFlowIndicator(IndicatorPrototype):
     def __init__(self):
         super().__init__("ChaikinMoneyFlowIndicator", [
                 IndicatorParameterDescription('window', 5, 30, 20, 'int')
-            ], 
+            ],
             "window")
 
     def calculate(self, params, df):
@@ -39,10 +40,11 @@ class EaseOfMovementIndicator(IndicatorPrototype):
             ], "window")
 
     def calculate(self, params, df):
-        return ta.volume.ease_of_movement(high=df['high'],
-                                    low=df['low'],
-                                    volume=df['volume'],
-                                    window=params['window'])
+        return ta.volume.ease_of_movement(
+            high=df['high'],
+            low=df['low'],
+            volume=df['volume'],
+            window=params['window'])
 
 
 class ForceIndexIndicator(IndicatorPrototype):
@@ -53,9 +55,10 @@ class ForceIndexIndicator(IndicatorPrototype):
             ], "window")
 
     def calculate(self, params, df):
-        return ta.volume.force_index(volume=df['volume'],
-                                    close=df['close'],
-                                    window =params['window'])
+        return ta.volume.force_index(
+            volume=df['volume'],
+            close=df['close'],
+            window=params['window'])
 
 
 class MFIIndicator(IndicatorPrototype):
@@ -66,11 +69,12 @@ class MFIIndicator(IndicatorPrototype):
             ], "window")
 
     def calculate(self, params, df):
-        return ta.volume.money_flow_index(high=df['high'],
-                                    low=df['low'],
-                                    close=df['close'],
-                                    volume=df['volume'],
-                                    window=params['window'],)
+        return ta.volume.money_flow_index(
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            volume=df['volume'],
+            window=params['window'],)
 
 
 class NegativeVolumeIndexIndicator(IndicatorPrototype):
@@ -79,8 +83,9 @@ class NegativeVolumeIndexIndicator(IndicatorPrototype):
         super().__init__("NegativeVolumeIndexIndicator", [], None)
 
     def calculate(self, params, df):
-        return ta.volume.negative_volume_index(close=df['close'],
-                                    volume=df['volume'],)
+        return ta.volume.negative_volume_index(
+            close=df['close'],
+            volume=df['volume'],)
 
 
 class OnBalanceVolumeIndicator(IndicatorPrototype):
@@ -130,8 +135,9 @@ class VolumeWeightedAveragePriceIndicator(IndicatorPrototype):
             ], "window")
 
     def calculate(self, params, df):
-        return ta.volume.volume_weighted_average_price(high=df['high'],
-                                    low=df['low'],
-                                    close=df['close'],
-                                    volume=df['volume'],
-                                    window=params['window'])
+        return ta.volume.volume_weighted_average_price(
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            volume=df['volume'],
+            window=params['window'])
