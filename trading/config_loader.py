@@ -5,9 +5,9 @@ from core.data.assets.asset_manager import AssetManager
 from core.nn.dynamic_nn import DynamicNN
 from core.qlearning.dqn_trainer import DQNTrainer
 from core.qlearning.q_arbiter import ExplorationArbiter
-from program.exchange_manager import StateSourcedExchanger
-from program.experience_evaluator import ExperienceEvaluator
-from program.trading_environment import TradingEnvironment
+from trading.exchange_manager import StateSourcedExchanger
+from trading.experience_evaluator import ExperienceEvaluator
+from trading.trading_environment import TradingEnvironment
 from utils.config_utils import assert_fields_in_dict
 
 

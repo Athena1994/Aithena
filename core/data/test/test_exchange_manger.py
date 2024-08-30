@@ -4,7 +4,7 @@ from pandas import Series
 
 from core.data.data_provider import Sample
 from core.simulation.state_manager import StateManager
-from program.exchange_manager import ExchangeDirection, StateSourcedExchanger
+from trading.exchange_manager import ExchangeDirection, StateSourcedExchanger
 
 
 class TestExchanger(TestCase):

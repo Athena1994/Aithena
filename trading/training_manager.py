@@ -11,8 +11,8 @@ from core.qlearning.q_arbiter import ExplorationArbiter
 from core.simulation.experience_provider import ExperienceProvider
 from core.simulation.sample_provider import SampleProvider
 from core.simulation.state_manager import StateManager
-from program.experience_evaluator import ExperienceEvaluator
-from program.trading_environment import TradingEnvironment
+from trading.experience_evaluator import ExperienceEvaluator
+from trading.trading_environment import TradingEnvironment
 from utils import benchmark
 
 

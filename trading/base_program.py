@@ -8,16 +8,15 @@ from core.qlearning.dqn_trainer import DQNTrainer
 from core.qlearning.q_arbiter import ArbiterFactory, DeepQFunction
 from core.simulation.sample_provider import SampleProvider
 from core.simulation.state_manager import StateManager
-from program.config_loader import ConfigFiles, ConfigLoader
-from program.evaluation import MetricFactory
-from program.exchange_manager import StateSourcedExchanger
-from program.experience_evaluator import ExperienceEvaluator
-from program.trading_environment import TradingEnvironment
-from program.training_manager import TrainingManager, TrainingReporter
+from trading.config_loader import ConfigFiles, ConfigLoader
+from trading.evaluation import MetricFactory
+from trading.exchange_manager import StateSourcedExchanger
+from trading.experience_evaluator import ExperienceEvaluator
+from trading.trading_environment import TradingEnvironment
+from trading.training_manager import TrainingManager, TrainingReporter
 
 
 class BaseProgram:
-
 
     def __init__(self,
                  config_files: ConfigFiles,

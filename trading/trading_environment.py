@@ -8,7 +8,7 @@ import numpy as np
 from core.data.data_provider import ChunkType, Sample
 from core.simulation.simulation_environment import SimulationEnvironment, State
 from core.simulation.data_classes import TransitionResult
-from program.exchange_manager import ExchangeDirection, Exchanger
+from trading.exchange_manager import ExchangeDirection, Exchanger
 from utils.config_utils import assert_fields_in_dict
 
 

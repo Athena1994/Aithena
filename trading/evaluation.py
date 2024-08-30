@@ -1,7 +1,7 @@
 
 
 from core.simulation.data_classes import TransitionResult
-from program.experience_evaluator import EvaluationMetric
+from trading.experience_evaluator import EvaluationMetric
 
 
 class RewardMetric(EvaluationMetric):

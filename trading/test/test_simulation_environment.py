@@ -25,9 +25,9 @@ from core.simulation.state_manager import StateManager, StateProvider
 from core.simulation.data_classes import TransitionResult
 from core.simulation.utils import perform_transition
 from mock.mockup import MockAgent, MockChunkProvider
-from program.exchange_manager \
+from trading.exchange_manager \
     import ExchangeDirection, Exchanger, StateSourcedExchanger
-from program.trading_environment import ActionType, TradingEnvironment
+from trading.trading_environment import ActionType, TradingEnvironment
 from utils import benchmark
 
 
