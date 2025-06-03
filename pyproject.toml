@@ -1,0 +1,20 @@
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Aithena"
+version = "0.1.0"
+description = "AI utilities"
+authors = [{ name = "Samantha Zehrer", email = "Samantha.Zehrer@gmail.com"}]
+dependencies = [
+    "torch", "JodisUtilities", "numpy"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src/" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["tests"]
