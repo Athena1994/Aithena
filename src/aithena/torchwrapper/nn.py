@@ -33,6 +33,32 @@ class LSTMLayerConfig:
 
 
 @config
+class Conv1DLayerConfig:
+    kernel_size: int = Attribute('kernel-size')
+    out_channels: int = Attribute('out-channels')
+    stride: int = Attribute(default=1)
+    padding: int = Attribute(default=0)
+
+    def create(self, input_size: int) -> Tuple[nn.LSTM, int]:
+        return nn.Conv1d(
+            input_size, self.out_channels,
+            self.kernel_size, self.stride, self.padding), self.out_channels
+
+
+@config
+class AdaptiveAvgPool1DLayerConfig:
+    output_size: int = Attribute('output-size')
+
+    def create(self, input_size: int) -> Tuple[nn.AdaptiveAvgPool1d, int]:
+        return nn.AdaptiveAvgPool1d(self.output_size), input_size
+
+
+class SqueezeModule(nn.Module):
+    def forward(self, x):
+        return x.squeeze(-1)
+
+
+@config
 class LayerDescriptor:
     type: str
     options: dict = Attribute('options', default={})
@@ -56,6 +82,15 @@ class LayerDescriptor:
             return LSTMLayerConfig(**self.options).create(input_size)
         elif layer_type == 'SEQUENTIAL':
             return SequentialLayerConfig(**self.options).create(input_size)
+        elif layer_type == 'CONV1D':
+            return Conv1DLayerConfig(**self.options).create(input_size)
+        elif layer_type == 'ADAPTIVEAVGPOOL1D':
+            return AdaptiveAvgPool1DLayerConfig(**self.options)\
+                .create(input_size)
+        elif layer_type == 'FLATTEN':
+            return nn.Flatten(), input_size
+        elif layer_type == 'SQUEEZE':
+            return SqueezeModule(), input_size
         else:
             raise ValueError(f"Unknown layer type: {self.type}")
 
@@ -83,6 +118,10 @@ def initialize_params(module: nn.Module):
     :param module: The module to initialize.
     """
     for m in module.modules():
+        if isinstance(m, nn.Conv1d):
+            nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                nn.init.uniform_(m.bias.data)
         if isinstance(m, nn.LSTM):
             nn.init.xavier_normal_(m.weight_ih_l0)
             nn.init.orthogonal_(m.weight_hh_l0)

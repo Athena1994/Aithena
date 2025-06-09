@@ -1,59 +1,57 @@
 
-from abc import abstractmethod
-
-from aithena.qlearning.markov.state\
-    import DictState, StateDescriptor, TensorDictState, arraydict_to_tensordict
+from aithena.qlearning.markov.state import DictState, TensorDictState
 
 
-from typing import Generic, TypeVar
+from typing import Callable, Generic, TypeAlias, TypeVar
+
+from aithena.qlearning.simulation.scenario import ScenarioContext
 
 T = TypeVar('T')
 D = TypeVar('D')
 
 
+DictStateFactory: TypeAlias = Callable[[D, T], DictState]
+
+
 class SimulationState(Generic[D, T]):
 
-    def __init__(self, state_data: T, meta_data: D, terminal: bool):
+    def __init__(self,
+                 context: ScenarioContext,
+                 observation: D,
+                 episode_data: T,
+                 terminal: bool,
+                 tensor_state_factory: DictStateFactory):
         """Initializes the simulation state with scenario data."""
-        self._state_data = state_data
-        self._meta_data = meta_data
+        self._episode_data = episode_data
+        self._scenario_context = context
+        self._observation = observation
         self._terminal = terminal
-        self._dict_state: DictState = None
-        self._tensor_dict_state: TensorDictState = None
-
-    # --- overwrite methods ---
-    @abstractmethod
-    def create_dict_state(self) -> StateDescriptor:
-        """Returns the descriptor of the DictState."""
-        raise NotImplementedError()
+        self._tensor_state: TensorDictState = None
+        self._dict_state_factory = tensor_state_factory
 
     # --- properties ---
 
     @property
     def is_terminal(self) -> bool:
-        """Returns True if the simulation state is terminal, False otherwise."""
         return self._terminal
 
     @property
-    def state_data(self) -> T:
-        """Returns the scenario data of the simulation state."""
-        return self._state_data
+    def context(self) -> ScenarioContext:
+        return self._scenario_context
 
     @property
-    def meta_data(self) -> D:
-        """Returns the meta data of the simulation state."""
-        return self._meta_data
+    def episode_data(self) -> T:
+        return self._episode_data
 
     @property
-    def dict_state(self) -> DictState:
-        """Returns the current state of the simulation as a DictState."""
-        if self._dict_state is None:
-            self._dict_state = self.create_dict_state()
-        return self._dict_state
+    def observation(self) -> D:
+        return self._observation
 
     @property
-    def tensor_dict_state(self) -> TensorDictState:
-        """Returns the current state of the simulation as a DictState."""
-        if self._tensor_dict_state is None:
-            self._tensor_dict_state = arraydict_to_tensordict(self.dict_state)
-        return self._tensor_dict_state
+    def tensor_state(self) -> TensorDictState:
+        if self._tensor_state is None:
+            if self._observation is None:
+                return None
+            self._tensor_state = self._dict_state_factory(
+                self.observation, self.episode_data)
+        return self._tensor_state

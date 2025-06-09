@@ -1,7 +1,6 @@
 
+from typing import List
 import unittest
-
-from torchrl.envs.libs.gym import GymEnv
 
 from aithena.nn.dynamic_nn import DynamicNNConfig
 from aithena.qlearning.arbiter.exploration_arbiter\
@@ -9,9 +8,10 @@ from aithena.qlearning.arbiter.exploration_arbiter\
 from aithena.qlearning.dqn_trainer \
     import DQNTrainingConfig
 from aithena.qlearning.simulation.markov_simulation import SimulationExperience
+from aithena.qlearning.simulation.simulation_state import SimulationState
 from jodisutils.misc.benchmark import Watch
 from testing.qlearning.cartpole_sim \
-    import CartPoleScenarioProvider, CartPoleSimulation, CartPoleState
+    import CartPoleScenario, CartPoleSimulation, EpisodeData, Observation
 
 
 class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
@@ -19,8 +19,11 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.cuda = True
 
-        env = GymEnv("CartPole-v1")
-        print(env.action_spec.shape)
+        def reward(old_state, action,
+                   new_state: SimulationState[Observation, EpisodeData]):
+            return new_state.episode_data.reward
+
+        self.sim = CartPoleSimulation(reward, self.cuda)
 
         self.nn = DynamicNNConfig(**{
             'units': [{
@@ -38,13 +41,13 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
                 },
             }],
             'output-tag': 'in'}
-            ).create_network(CartPoleState.state_descriptor, self.cuda)
+            ).create_network(self.sim.tensor_state_descriptor, self.cuda)
 
         self.trainer = DQNTrainingConfig(**{
             "qlearning": {
                 "replay-buffer-size": 10000,
                 "discount-factor": 0.99,
-                "state-descriptor": CartPoleState.state_descriptor,
+                "state-descriptor": self.sim.tensor_state_descriptor,
                 "target-update-strategy": {
                     "type": "soft",
                     "params": {"tau": 0.05}
@@ -62,11 +65,6 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
             }
         }).create_trainer(self.nn, self.cuda)
 
-        def reward(old_state, action, new_state: CartPoleState):
-            return new_state.state_data.reward
-
-        self.sim = CartPoleSimulation(reward, self.cuda)
-
         self.arbiter = ExplorationArbiterConfig(**{
             "type": "decaying-epsilon-greedy",
             "params": {
@@ -76,7 +74,7 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
             }
         }).create_arbiter(self.nn)
 
-        self.provider = CartPoleScenarioProvider()
+        self.scenario = CartPoleScenario()
 
     def test_init(self):
         pass
@@ -84,20 +82,25 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
     async def test_cart_pole(self):
         """Test the DQN trainer with the CartPole environment."""
 
-        def optimize(exp: SimulationExperience):
+        def optimize(exp: List[SimulationExperience]):
+            e = exp[0]
             self.trainer.replay_buffer.add_experience(
-                exp.dict_state_experience, 1)
+                e.as_experience, 1)
             self.trainer.perform_training_step()
+
+        it = iter(self.scenario)
 
         async def episode(ix):
             with self.arbiter.exploration():
-                self.provider.reset()
-                experiences = await self.sim.run(self.provider,
-                                                 self.arbiter, 1000,
-                                                 optimize)
-                return len(experiences)
+                await self.sim.reset(next(it))
+                cnt, _, _ = await self.sim.run_episode(self.arbiter, -1)
 
-        for ix in range(1000):
+            return cnt
+
+        self.sim.exploration_callback.reset(optimize, 1)
+
+        max_episodes = 110
+        for ix in range(max_episodes):
             w = Watch()
             w.start()
             cnt = await episode(ix)
@@ -105,4 +108,4 @@ class TestDQNTrainer(unittest.IsolatedAsyncioTestCase):
             if cnt == 500:
                 break
 
-        self.assertNotEqual(ix, 999)
+        self.assertNotEqual(ix, max_episodes - 1,)

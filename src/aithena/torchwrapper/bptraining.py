@@ -117,6 +117,7 @@ class BPTrainer(Generic[T]):
         output = ff_callback(self._model, batch)
         loss = self._loss_fn(output, target)
         loss.backward()
+        torch.nn.utils.clip_grad_value_(self._model.parameters(), 100)
         self._optimizer.step()
 
         return loss.item() / self._batch_size

@@ -7,25 +7,10 @@ from testing.simulation.mock_simulation import MockScenario
 
 class TestScenario(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.scenario = MockScenario(np.array([1, 2, 3]))
+        self.scenario = MockScenario(np.array([1, 2, 3, 4, 5]))
+        self.context = self.scenario.create_context()
 
     async def test_initial_state_data(self):
-        initial_state = self.scenario.create_initial_state_data()
-        self.assertEqual(initial_state.acc, 1)
-        self.assertEqual(initial_state.next_ix, 1)
-        self.assertTrue((initial_state.values == [1, 2, 3]).all())
-
-        with self.assertRaises(RuntimeError):
-            a = self.scenario.initial_state_data
-
-        await self.scenario.prepare()
-
-        a = self.scenario.initial_state_data
-        self.assertEqual(a.acc, 1)
-        self.assertEqual(a.next_ix, 1)
-        self.assertTrue((a.values == [1, 2, 3]).all())
-
-        b = self.scenario.initial_state_data
-        self.assertEqual(a, b)
-
-        self.assertIsNot(initial_state, a)
+        self.assertTrue(np.array_equal(self.context._ar,
+                                       np.array([1, 2, 3, 4, 5])))
+        self.assertEqual(self.context._ix, 0)

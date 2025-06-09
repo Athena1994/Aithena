@@ -1,45 +1,40 @@
 
-from abc import abstractmethod
-from typing import Generic
-from aithena.qlearning.simulation.simulation_state import T, D
+from typing import Generic, Tuple, TypeVar
 
 
-class SimulationScenario(Generic[T]):
+D = TypeVar('D')
+T = TypeVar('T')
 
-    def __init__(self):
-        self._initial_state_data: T = None
-        self._prepared: bool = False
 
-    # --- overwrite these methods ---
+class ScenarioContext(Generic[D, T]):
 
-    @abstractmethod
-    def create_initial_state_data(self) -> T:
+    def begin_episode(self) -> Tuple[D, T]:
         raise NotImplementedError()
 
-    async def on_prepare(self):
-        pass
+    def step(self) -> D:
+        raise NotImplementedError()
 
-    def on_start_scenario(self, meta: D, init_state: T) -> T:
-        return init_state
+    def has_next(self) -> bool:
+        return NotImplementedError()
 
-    # --- public methods ---
 
-    async def prepare(self):
-        await self.on_prepare()
-        self._prepared = True
+class Scenario(Generic[D, T]):
 
-    # --- properties ---
+    class Iterator:
+        def __init__(self, context: ScenarioContext):
+            self._context = context
 
-    @property
-    def prepared(self) -> bool:
-        """Returns True if the scenario is prepared, False otherwise."""
-        return self._prepared
+        def __next__(self) -> Tuple[D, T, ScenarioContext]:
+            if not self._context.has_next():
+                raise StopIteration()
+            return self._context
 
-    @property
-    def initial_state_data(self) -> T:
-        if self._initial_state_data is None:
-            if not self._prepared:
-                raise RuntimeError("Scenario must be prepared before accessing "
-                                   "the initial state.")
-            self._initial_state_data = self.create_initial_state_data()
-        return self._initial_state_data
+        def __iter__(self):
+            return self
+
+    def __iter__(self) -> Iterator:
+        return Scenario.Iterator(self.create_context())
+
+    # --- overwrite these methods ---
+    def create_context(self) -> ScenarioContext:
+        raise NotImplementedError()

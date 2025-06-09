@@ -1,19 +1,21 @@
 
 
 from abc import abstractmethod
+from asyncio import Event
 from dataclasses import dataclass
-from typing import Callable, List, Type, TypeAlias, TypeVar
+from typing import Callable, Generic, Tuple, TypeAlias
 
 from aithena.qlearning.arbiter.qarbiter import QArbiter
 from aithena.qlearning.markov.experience import Experience
-from aithena.qlearning.markov.state import move_tensor_state
-from aithena.qlearning.simulation.scenario_provider import ScenarioProvider
+from aithena.qlearning.markov.state import StateDescriptor, TensorDictState
+from aithena.qlearning.simulation.scenario import ScenarioContext
 from aithena.qlearning.simulation.simulation_state \
     import SimulationState, T, D
+from jodisutils.misc.callbacks import BufferedCallback
 
 
 @dataclass
-class SimulationExperience:
+class SimulationExperience(Generic[D, T]):
     old_state: SimulationState[D, T]
     action: int
     reward: float
@@ -21,12 +23,12 @@ class SimulationExperience:
     terminal: bool
 
     @property
-    def dict_state_experience(self) -> Experience:
+    def as_experience(self) -> Experience:
         return Experience(
-            self.old_state.dict_state,
+            self.old_state.tensor_state,
             self.action,
             self.reward,
-            self.new_state.dict_state,
+            self.new_state.tensor_state,
             self.terminal
         )
 
@@ -34,99 +36,123 @@ class SimulationExperience:
 RewardCallback: TypeAlias = Callable[[SimulationState[D, T],
                                       int,
                                       SimulationState[D, T]], float]
-ExperienceWeightCallback: TypeAlias = Callable[[SimulationExperience], float]
-
-TS = TypeVar('TS', bound=SimulationState)
 
 
 class MarkovSimulation:
 
-    def __init__(self, reward_callback: RewardCallback, state_type: Type[TS],
-                 cuda: bool):
-        self._state_type = state_type
+    def __init__(self, reward_callback: RewardCallback, cuda: bool):
+        if reward_callback is None:
+            raise ValueError("Reward callback must not be None.")
+
         self._state: SimulationState = None
         self._reward_callback = reward_callback
+        self._exploration_callback = BufferedCallback()
         self._cuda = cuda
 
     # --- overwrite methods ---
+
     @abstractmethod
-    async def advance_state(self,
-                            meta: D,
-                            state: T,
-                            action: int) -> SimulationState:
+    async def advance_state(self, observation: D, episode_data: T,
+                            action: int) -> Tuple[T, bool]:
         """Advances the current state of the simulation."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def create_tensor_state(self, obs: D, episode_data: T, cuda: bool
+                            ) -> TensorDictState:
+        """Converts the current state of the simulation to a DictState."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_tensor_state_descriptor(self) -> StateDescriptor:
+        """Returns the state descriptor for the tensor state."""
         raise NotImplementedError()
 
     async def on_reset(self):
         pass
 
     # --- properties ---
+
     @property
-    def current_scenario_finished(self) -> bool:
+    def tensor_state_descriptor(self) -> StateDescriptor:
+        return self.get_tensor_state_descriptor()
+
+    @property
+    def terminal_state(self) -> bool:
         """Returns True if the current scenario is finished, False otherwise."""
         return self._state.is_terminal if self._state else True
 
+    @property
+    def exploration_callback(self) -> BufferedCallback:
+        """Returns the exploration callback."""
+        return self._exploration_callback
+
     # --- public methods ---
-    async def reset(self) -> SimulationState:
+
+    async def reset(self, context: ScenarioContext) -> None:
         """Resets the simulation to its initial state."""
-        self._state = None
+
+        self.set_state(context, *context.begin_episode(), False)
+
         await self.on_reset()
 
-    async def run(self, scenario_provider: ScenarioProvider, agent: QArbiter,
-                  steps: int,
-                  callback: Callable[[SimulationExperience], None] = None)\
-            -> List[SimulationExperience]:
+    def set_state(self, context: ScenarioContext, obs: D, data: T,
+                  terminal: bool):
+
+        device = 'cuda' if self._cuda else 'cpu'
+
+        def tensor_factory(obs: D, ep_data: T) -> TensorDictState:
+            return self.create_tensor_state(obs, ep_data, device)
+
+        self._state = SimulationState(
+            context=context,
+            observation=obs,
+            episode_data=data,
+            terminal=terminal,
+            tensor_state_factory=tensor_factory)
+
+    async def run_episode(self, agent: QArbiter, max_steps: int = -1,
+                          abort: Event = None) -> Tuple[int, int, bool]:
         """Runs the simulation for a given number of episodes."""
 
-        experiences = []
-        while len(experiences) < steps:
-            if self.current_scenario_finished:
-                if not await self._prepare_next_scenario(scenario_provider):
-                    break
+        if self.terminal_state:
+            raise RuntimeError(
+                "Cannot run episode on terminal state. "
+                "Please reset the simulation first.")
 
-            exp = await self._perform_step(agent)
-            if callback is not None:
-                callback(exp)
-            experiences.append(exp)
+        step = 0
+        total_reward = 0.0
 
-        return experiences
+        while ((not self.terminal_state and (max_steps < 0 or step < max_steps))
+               and not (abort and abort.is_set())):
 
-    # --- private methods ---
+            context: ScenarioContext = self._state.context
 
-    async def _prepare_next_scenario(self, scenario_provider: ScenarioProvider)\
-            -> bool:
+            # determine action based on current state
+            action: int = agent.decide(self._state.tensor_state)[0]
 
-        meta_data = self._state.meta_data if self._state else None
-        meta_data = await scenario_provider.start_next_scenario(meta_data)
+            # advance the state based on the action
+            new_episode_data, terminal = await self.advance_state(
+                self._state.observation, self._state.episode_data, action)
 
-        if meta_data is None:
-            return False
+            old_state: SimulationState = self._state
 
-        scenario = scenario_provider.current_scenario
+            if not terminal and context.has_next():
+                new_observation = context.step()
+            else:
+                new_observation = None
+                terminal = True
 
-        initial_state_data = scenario.on_start_scenario(
-            meta_data, scenario.initial_state_data)
+            self.set_state(context, new_observation, new_episode_data, terminal)
+            reward = self._reward_callback(old_state, action, self._state)
 
-        self._state = self._state_type(initial_state_data, meta_data, False)
+            self.exploration_callback(
+                SimulationExperience(old_state, action, reward, self._state,
+                                     self._state.is_terminal))
 
-        return True
+            step += 1
+            total_reward += reward
 
-    async def _perform_step(self, agent: QArbiter) \
-            -> SimulationExperience:
-        old_state = self._state
-        if old_state is None:
-            raise RuntimeError("Simulation state is not initialized.")
+        self.exploration_callback.flush()
 
-        if old_state.is_terminal:
-            raise RuntimeError("Cannot perform step on terminal state.")
-
-        action: int = agent.decide(
-            move_tensor_state(old_state.tensor_dict_state, self._cuda))[0]
-
-        self._state = await self.advance_state(
-            old_state.meta_data, old_state.state_data, action)
-
-        reward = self._reward_callback(old_state, action, self._state)
-
-        return SimulationExperience(old_state, action, reward, self._state,
-                                    self._state.is_terminal)
+        return step, total_reward, self.terminal_state

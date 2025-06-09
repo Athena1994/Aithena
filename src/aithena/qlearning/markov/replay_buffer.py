@@ -90,6 +90,10 @@ class ReplayBuffer:
         self._weight_sum += weight - self._weights[next_ix]
         self._weights[next_ix] = weight
 
+        if experience.new_state is None:
+            experience.new_state = {k: torch.zeros_like(v)
+                                    for k, v in experience.old_state.items()}
+
         self._buffer[next_ix] = experience
 
         # cycle buffer pointer
